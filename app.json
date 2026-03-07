@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Personal Finance Mobile",
+    "slug": "personal-finance-mobile",
+    "scheme": "pfm",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#0F766E",
+          "defaultChannel": "finance-alerts"
+        }
+      ]
+    ],
+    "android": {
+      "package": "com.personalfinancemobile.app"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
