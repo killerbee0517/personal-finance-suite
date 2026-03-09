@@ -124,3 +124,16 @@ export const insuranceSchema = z.object({
   status: z.string().min(1),
   notes: z.string().optional(),
 });
+
+export const physicalAssetSchema = z.object({
+  asset_type: z.string().min(1),
+  asset_name: z.string().min(1),
+  holder_name: z.string().min(1),
+  quantity: z.coerce.number().positive(),
+  unit: z.string().min(1),
+  purchase_date: z.string().min(10),
+  purchase_rate: z.coerce.number().positive(),
+  current_rate: z.coerce.number().positive(),
+  status: z.string().min(1),
+  notes: z.string().optional(),
+});

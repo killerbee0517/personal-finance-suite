@@ -62,6 +62,7 @@ const BACKUP_TABLES: BackupTableConfig[] = [
   { table: "epf_accounts", sheet: "EPF" },
   { table: "ppf_accounts", sheet: "PPF" },
   { table: "insurance_policies", sheet: "Insurance" },
+  { table: "physical_assets", sheet: "PhysicalAssets" },
 ];
 
 const APPLY_ORDER = BACKUP_TABLES.map((x) => x.table);
@@ -227,7 +228,7 @@ async function ensurePreviewDir() {
 export async function buildBackupWorkbookBuffer() {
   const wb = XLSX.utils.book_new();
 
-  const [fds, loans, links, incentives, rds, bonds, coupons, holdings, epfAccounts, ppfAccounts, insurancePolicies] = await Promise.all([
+  const [fds, loans, links, incentives, rds, bonds, coupons, holdings, epfAccounts, ppfAccounts, insurancePolicies, physicalAssets] = await Promise.all([
     repo.listFDs(),
     repo.listLoans(),
     repo.listLinks(),
@@ -239,9 +240,23 @@ export async function buildBackupWorkbookBuffer() {
     repo.listEPFAccounts(),
     repo.listPPFAccounts(),
     repo.listInsurancePolicies(),
+    repo.listPhysicalAssets(),
   ]);
 
-  const metrics = buildMetrics(fds, loans, links, incentives, rds, bonds, coupons, holdings, epfAccounts, ppfAccounts, insurancePolicies);
+  const metrics = buildMetrics(
+    fds,
+    loans,
+    links,
+    incentives,
+    rds,
+    bonds,
+    coupons,
+    holdings,
+    epfAccounts,
+    ppfAccounts,
+    insurancePolicies,
+    physicalAssets,
+  );
   const dashboardRows = [
     { metric: "exported_at", value: dayjs().format("YYYY-MM-DD HH:mm:ss") },
     { metric: "total_assets", value: metrics.totalAssets },

@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   const ready = await ensureInitialized();
   if (!ready) return <DbRequired />;
 
-  const [fds, loans, links, incentives, rds, bonds, coupons, holdings, epfAccounts, ppfAccounts, insurancePolicies] = await Promise.all([
+  const [fds, loans, links, incentives, rds, bonds, coupons, holdings, epfAccounts, ppfAccounts, insurancePolicies, physicalAssets] = await Promise.all([
     repo.listFDs(),
     repo.listLoans(),
     repo.listLinks(),
@@ -24,9 +24,23 @@ export default async function DashboardPage() {
     repo.listEPFAccounts(),
     repo.listPPFAccounts(),
     repo.listInsurancePolicies(),
+    repo.listPhysicalAssets(),
   ]);
 
-  const metrics = buildMetrics(fds, loans, links, incentives, rds, bonds, coupons, holdings, epfAccounts, ppfAccounts, insurancePolicies);
+  const metrics = buildMetrics(
+    fds,
+    loans,
+    links,
+    incentives,
+    rds,
+    bonds,
+    coupons,
+    holdings,
+    epfAccounts,
+    ppfAccounts,
+    insurancePolicies,
+    physicalAssets,
+  );
 
   const bankTotals = [...new Set(fds.map((f) => f.bank_name))].map((bank) => ({
     bank,
@@ -41,6 +55,7 @@ export default async function DashboardPage() {
     { name: "Equity", value: metrics.equityValue },
     { name: "EPF", value: metrics.epfValue },
     { name: "PPF", value: metrics.ppfValue },
+    { name: "Physical", value: metrics.physicalAssetValue },
   ].filter((x) => x.value > 0);
 
   const bankExposure = bankTotals.map((b) => ({ name: b.bank, value: b.total }));
@@ -68,6 +83,7 @@ export default async function DashboardPage() {
         <StatCard label="Equity & MF Value" value={metrics.equityValue} />
         <StatCard label="EPF Value" value={metrics.epfValue} />
         <StatCard label="PPF Value" value={metrics.ppfValue} />
+        <StatCard label="Physical Assets" value={metrics.physicalAssetValue} />
         <StatCard label="Pending Incentives" value={metrics.pendingIncentives} />
         <StatCard label="Insurance Due (30d)" value={metrics.insuranceDueCount} isCount />
       </div>

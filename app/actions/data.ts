@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { parseCasFile } from "@/lib/cas";
 import { applyBackupImportPreview, createBackupImportPreview, deleteBackupImportPreview } from "@/lib/backup";
 import { ensureInitialized, resetSeedData } from "@/lib/init";
-import { bondSchema, epfSchema, fdSchema, insuranceSchema, loanSchema, ppfSchema, rdSchema } from "@/lib/schemas";
+import { bondSchema, epfSchema, fdSchema, insuranceSchema, loanSchema, physicalAssetSchema, ppfSchema, rdSchema } from "@/lib/schemas";
 import { regenerateAlerts, repo } from "@/lib/services";
 
 const toObj = (fd: FormData) => Object.fromEntries(fd.entries());
@@ -25,7 +25,7 @@ async function refreshAlertsAndViews() {
     await repo.listInsurancePolicies(),
   );
 
-  ["/dashboard", "/alerts", "/fds", "/loans", "/rds", "/bonds", "/equity", "/epf", "/ppf", "/insurance", "/calendar"].forEach((p) =>
+  ["/dashboard", "/alerts", "/fds", "/loans", "/rds", "/bonds", "/equity", "/epf", "/ppf", "/insurance", "/physical", "/calendar"].forEach((p) =>
     revalidatePath(p),
   );
 }
@@ -342,6 +342,37 @@ export async function saveInsuranceAction(formData: FormData) {
 
   await refreshAlertsAndViews();
   redirect("/insurance");
+}
+
+export async function savePhysicalAssetAction(formData: FormData) {
+  const ready = await ensureInitialized();
+  if (!ready) throw new Error("DB not connected");
+
+  const idRaw = formData.get("id");
+  const payload = physicalAssetSchema.parse(toObj(formData));
+  const purchaseValue = Number((payload.quantity * payload.purchase_rate).toFixed(2));
+  const currentValue = Number((payload.quantity * payload.current_rate).toFixed(2));
+
+  await repo.savePhysicalAsset(
+    {
+      asset_type: payload.asset_type,
+      asset_name: payload.asset_name,
+      holder_name: payload.holder_name,
+      quantity: payload.quantity,
+      unit: payload.unit,
+      purchase_date: payload.purchase_date,
+      purchase_rate: payload.purchase_rate,
+      current_rate: payload.current_rate,
+      purchase_value: purchaseValue,
+      current_value: currentValue,
+      status: payload.status,
+      notes: payload.notes || null,
+    },
+    idRaw ? Number(idRaw) : undefined,
+  );
+
+  await refreshAlertsAndViews();
+  redirect("/physical");
 }
 
 export async function importCasAction(formData: FormData) {

@@ -186,6 +186,22 @@ export async function ensureInitialized() {
       notes TEXT NULL
     )`);
 
+    await pool.query(`CREATE TABLE IF NOT EXISTS physical_assets (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      asset_type VARCHAR(80) NOT NULL,
+      asset_name VARCHAR(160) NOT NULL,
+      holder_name VARCHAR(120) NOT NULL,
+      quantity DOUBLE NOT NULL,
+      unit VARCHAR(20) NOT NULL,
+      purchase_date DATE NOT NULL,
+      purchase_rate DOUBLE NOT NULL,
+      current_rate DOUBLE NOT NULL,
+      purchase_value DOUBLE NOT NULL,
+      current_value DOUBLE NOT NULL,
+      status VARCHAR(40) NOT NULL,
+      notes TEXT NULL
+    )`);
+
     await pool.query(`CREATE TABLE IF NOT EXISTS fd_loan_link (
       id INT AUTO_INCREMENT PRIMARY KEY,
       fd_id INT NOT NULL,
@@ -403,11 +419,23 @@ async function backfillAdditionalSeedData() {
       ],
     );
   }
+
+  const [physicalRows] = (await pool.query("SELECT COUNT(*) as c FROM physical_assets")) as [Array<{ c: number }>, unknown];
+  if (physicalRows[0].c === 0) {
+    await pool.query(
+      `INSERT INTO physical_assets (asset_type, asset_name, holder_name, quantity, unit, purchase_date, purchase_rate, current_rate, purchase_value, current_value, status, notes)
+      VALUES
+      ('gold','Gold Coin 24K','Owner',80,'gm', ?, 5200, 6400, 416000, 512000, 'active', 'Bought for long-term hedge'),
+      ('silver','Silver Bar 999','Owner',600,'gm', ?, 62, 76, 37200, 45600, 'active', 'Wedding reserve')`,
+      [today.subtract(20, "month").format("YYYY-MM-DD"), today.subtract(14, "month").format("YYYY-MM-DD")],
+    );
+  }
 }
 
 export async function resetSeedData() {
   await pool.query("DELETE FROM alerts");
   await pool.query("DELETE FROM insurance_policies");
+  await pool.query("DELETE FROM physical_assets");
   await pool.query("DELETE FROM ppf_accounts");
   await pool.query("DELETE FROM epf_accounts");
   await pool.query("DELETE FROM bond_coupon_schedule");
@@ -534,6 +562,14 @@ export async function resetSeedData() {
       today.add(40, "day").format("YYYY-MM-DD"),
       today.subtract(2, "year").format("YYYY-MM-DD"),
     ],
+  );
+
+  await pool.query(
+    `INSERT INTO physical_assets (id, asset_type, asset_name, holder_name, quantity, unit, purchase_date, purchase_rate, current_rate, purchase_value, current_value, status, notes)
+    VALUES
+    (1,'gold','Gold Coin 24K','Owner',80,'gm', ?, 5200, 6400, 416000, 512000, 'active', 'Bought for long-term hedge'),
+    (2,'silver','Silver Bar 999','Owner',600,'gm', ?, 62, 76, 37200, 45600, 'active', 'Wedding reserve')`,
+    [today.subtract(20, "month").format("YYYY-MM-DD"), today.subtract(14, "month").format("YYYY-MM-DD")],
   );
 
   await pool.query(

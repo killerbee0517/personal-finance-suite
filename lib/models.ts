@@ -150,6 +150,22 @@ export type InsurancePolicy = {
   notes: string | null;
 };
 
+export type PhysicalAsset = {
+  id: number;
+  asset_type: string;
+  asset_name: string;
+  holder_name: string;
+  quantity: number;
+  unit: string;
+  purchase_date: string;
+  purchase_rate: number;
+  current_rate: number;
+  purchase_value: number;
+  current_value: number;
+  status: string;
+  notes: string | null;
+};
+
 export type EquityHolding = {
   id: number;
   source: string;

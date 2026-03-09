@@ -13,6 +13,7 @@ import {
   InsurancePolicy,
   Incentive,
   Loan,
+  PhysicalAsset,
   PPFAccount,
   RD,
 } from "@/lib/models";
@@ -36,6 +37,7 @@ const dateCols = [
   "fy_deadline_date",
   "last_interest_credit_date",
   "last_contribution_date",
+  "purchase_date",
 ];
 
 const normalize = <T extends Record<string, unknown>>(row: T): T => {
@@ -441,6 +443,53 @@ export const repo = {
     );
   },
 
+  listPhysicalAssets: async () =>
+    (await sql<PhysicalAsset>("SELECT * FROM physical_assets ORDER BY purchase_date DESC")).map(normalize),
+  getPhysicalAsset: async (id: number) => {
+    const rows = await sql<PhysicalAsset>("SELECT * FROM physical_assets WHERE id=?", [id]);
+    return rows[0] ? normalize(rows[0]) : undefined;
+  },
+  savePhysicalAsset: async (payload: Omit<PhysicalAsset, "id">, id?: number) => {
+    if (id) {
+      await sql(
+        `UPDATE physical_assets SET asset_type=?,asset_name=?,holder_name=?,quantity=?,unit=?,purchase_date=?,purchase_rate=?,current_rate=?,purchase_value=?,current_value=?,status=?,notes=? WHERE id=?`,
+        [
+          payload.asset_type,
+          payload.asset_name,
+          payload.holder_name,
+          payload.quantity,
+          payload.unit,
+          payload.purchase_date,
+          payload.purchase_rate,
+          payload.current_rate,
+          payload.purchase_value,
+          payload.current_value,
+          payload.status,
+          payload.notes,
+          id,
+        ],
+      );
+      return;
+    }
+    await sql(
+      `INSERT INTO physical_assets (asset_type,asset_name,holder_name,quantity,unit,purchase_date,purchase_rate,current_rate,purchase_value,current_value,status,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        payload.asset_type,
+        payload.asset_name,
+        payload.holder_name,
+        payload.quantity,
+        payload.unit,
+        payload.purchase_date,
+        payload.purchase_rate,
+        payload.current_rate,
+        payload.purchase_value,
+        payload.current_value,
+        payload.status,
+        payload.notes,
+      ],
+    );
+  },
+
   listLinks: async () => (await sql<FDLoanLink>("SELECT * FROM fd_loan_link")).map(normalize),
   listIncentives: async () => (await sql<Incentive>("SELECT * FROM incentive_tracker ORDER BY expected_date ASC")).map(normalize),
 
@@ -531,6 +580,7 @@ export function buildMetrics(
   epfAccounts: EPFAccount[] = [],
   ppfAccounts: PPFAccount[] = [],
   insurancePolicies: InsurancePolicy[] = [],
+  physicalAssets: PhysicalAsset[] = [],
 ) {
   const activeFDs = fds.filter((f) => f.status === "active");
   const activeRds = rds.filter((r) => r.status === "active");
@@ -542,8 +592,9 @@ export function buildMetrics(
   const equityAssets = holdings.reduce((s, h) => s + h.current_value, 0);
   const epfAssets = epfAccounts.filter((e) => e.status === "active").reduce((s, e) => s + e.current_balance, 0);
   const ppfAssets = ppfAccounts.filter((p) => p.status === "active").reduce((s, p) => s + p.current_balance, 0);
+  const physicalAssetValue = physicalAssets.filter((p) => p.status === "active").reduce((s, p) => s + p.current_value, 0);
 
-  const totalAssets = fdAssets + rdAssets + bondAssets + equityAssets + epfAssets + ppfAssets;
+  const totalAssets = fdAssets + rdAssets + bondAssets + equityAssets + epfAssets + ppfAssets + physicalAssetValue;
   const totalLiabilities = loans.filter((l) => l.status === "active").reduce((s, l) => s + l.outstanding_principal, 0);
 
   const loanBackedDeposits = activeFDs
@@ -580,6 +631,7 @@ export function buildMetrics(
     equityValue: equityAssets,
     epfValue: epfAssets,
     ppfValue: ppfAssets,
+    physicalAssetValue,
     loanBackedDeposits,
     reservedDeposits,
     pendingIncentives,

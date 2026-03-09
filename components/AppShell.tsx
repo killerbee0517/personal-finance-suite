@@ -23,6 +23,7 @@ const nav = [
   ["EPF", "/epf"],
   ["PPF", "/ppf"],
   ["Insurance", "/insurance"],
+  ["Physical Assets", "/physical"],
   ["Calendar", "/calendar"],
   ["Incentive Tracker", "/incentives"],
   ["Alerts Center", "/alerts"],
