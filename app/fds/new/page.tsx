@@ -109,6 +109,15 @@ export default function FDNewPage() {
           </Field>
         </div>
 
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Raised Under Name">
+            <input name="raised_under_name" className="ta-input" />
+          </Field>
+          <Field label="Nominee Name">
+            <input name="nominee_name" className="ta-input" />
+          </Field>
+        </div>
+
         <Field label="Remarks">
           <textarea name="remarks" className="ta-input" rows={2} />
         </Field>

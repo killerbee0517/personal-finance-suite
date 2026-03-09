@@ -22,6 +22,8 @@ export const fdSchema = z.object({
   certificate_received_date: z.string().optional(),
   raised_by_name: z.string().optional(),
   raised_by_contact: z.string().optional(),
+  raised_under_name: z.string().optional(),
+  nominee_name: z.string().optional(),
   remarks: z.string().optional(),
   notes: z.string().optional(),
 });

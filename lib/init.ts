@@ -54,6 +54,8 @@ export async function ensureInitialized() {
       certificate_received_date DATE NULL,
       raised_by_name VARCHAR(120) NULL,
       raised_by_contact VARCHAR(120) NULL,
+      raised_under_name VARCHAR(120) NULL,
+      nominee_name VARCHAR(120) NULL,
       remarks TEXT NULL,
       notes TEXT NULL
     )`);
@@ -64,6 +66,8 @@ export async function ensureInitialized() {
     await ensureColumnExists("fd_master", "certificate_received_date", "certificate_received_date DATE NULL");
     await ensureColumnExists("fd_master", "raised_by_name", "raised_by_name VARCHAR(120) NULL");
     await ensureColumnExists("fd_master", "raised_by_contact", "raised_by_contact VARCHAR(120) NULL");
+    await ensureColumnExists("fd_master", "raised_under_name", "raised_under_name VARCHAR(120) NULL");
+    await ensureColumnExists("fd_master", "nominee_name", "nominee_name VARCHAR(120) NULL");
     await ensureColumnExists("fd_master", "remarks", "remarks TEXT NULL");
 
     await pool.query(`CREATE TABLE IF NOT EXISTS loan_master (
@@ -431,12 +435,12 @@ export async function resetSeedData() {
   );
 
   await pool.query(
-    `INSERT INTO fd_master (id, instrument_type, holder_name, bank_name, branch, fd_number, deposit_date, maturity_date, principal, interest_rate, tenure_days, maturity_value_expected, maturity_value_actual, payout_type, status, funding_type, linked_loan_id, reserved_for, renewal_flag, renewal_from_fd_id, renewal_date, renewal_new_fd_amount, extra_amount_added, incentive_expected, incentive_received, certificate_received, certificate_received_date, raised_by_name, raised_by_contact, remarks, notes)
+    `INSERT INTO fd_master (id, instrument_type, holder_name, bank_name, branch, fd_number, deposit_date, maturity_date, principal, interest_rate, tenure_days, maturity_value_expected, maturity_value_actual, payout_type, status, funding_type, linked_loan_id, reserved_for, renewal_flag, renewal_from_fd_id, renewal_date, renewal_new_fd_amount, extra_amount_added, incentive_expected, incentive_received, certificate_received, certificate_received_date, raised_by_name, raised_by_contact, raised_under_name, nominee_name, remarks, notes)
     VALUES
-    (1,'fd','Owner','SBI','Whitefield','SBIFD001', ?, ?, 2000000, 7.2, 365, 2144000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 0, NULL, NULL, NULL, 0, 12000, 7000, 1, ?, 'Ravi K', '9876543210', 'Core emergency ladder deposit', 'Primary annual FD'),
-    (2,'fd','Owner','ICICI Bank','HSR','ICFD902', ?, ?, 1800000, 7.6, 370, 1948000, NULL, 'Cumulative', 'active', 'Loan-Backed', 2, NULL, 0, NULL, NULL, NULL, 0, 15000, 5000, 1, ?, 'Anita S', '9988776655', 'Lien marked against OD facility', 'Linked to OD'),
-    (3,'subordinate_debt','Owner','Axis Bank','Koramangala','AXFD200', ?, ?, 1250000, 7.05, 300, 1323000, NULL, 'Monthly Interest', 'active', 'Self', NULL, 'House Renovation', 0, NULL, NULL, NULL, 0, 9000, 9000, 0, NULL, 'Deepak M', '9123456780', 'Reserved corpus for planned renovation', 'Reserved fund'),
-    (4,'ncd','Owner','HDFC Bank','Marathahalli','HDFD099', ?, ?, 950000, 7.4, 545, 1069000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 1, 1, ?, 1120000, 170000, 6000, 0, 1, ?, 'Manoj P', '9001122334', 'Renewed with additional top-up capital', 'Top-up planned')`,
+    (1,'fd','Owner','SBI','Whitefield','SBIFD001', ?, ?, 2000000, 7.2, 365, 2144000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 0, NULL, NULL, NULL, 0, 12000, 7000, 1, ?, 'Ravi K', '9876543210', 'Suresh N', 'Spouse', 'Core emergency ladder deposit', 'Primary annual FD'),
+    (2,'fd','Owner','ICICI Bank','HSR','ICFD902', ?, ?, 1800000, 7.6, 370, 1948000, NULL, 'Cumulative', 'active', 'Loan-Backed', 2, NULL, 0, NULL, NULL, NULL, 0, 15000, 5000, 1, ?, 'Anita S', '9988776655', 'Anita S', 'Father', 'Lien marked against OD facility', 'Linked to OD'),
+    (3,'subordinate_debt','Owner','Axis Bank','Koramangala','AXFD200', ?, ?, 1250000, 7.05, 300, 1323000, NULL, 'Monthly Interest', 'active', 'Self', NULL, 'House Renovation', 0, NULL, NULL, NULL, 0, 9000, 9000, 0, NULL, 'Deepak M', '9123456780', 'Deepak M', 'Mother', 'Reserved corpus for planned renovation', 'Reserved fund'),
+    (4,'ncd','Owner','HDFC Bank','Marathahalli','HDFD099', ?, ?, 950000, 7.4, 545, 1069000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 1, 1, ?, 1120000, 170000, 6000, 0, 1, ?, 'Manoj P', '9001122334', 'Manoj P', 'Spouse', 'Renewed with additional top-up capital', 'Top-up planned')`,
     [
       today.subtract(120, "day").format("YYYY-MM-DD"),
       today.add(245, "day").format("YYYY-MM-DD"),

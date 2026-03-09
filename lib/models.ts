@@ -28,6 +28,8 @@
   certificate_received_date: string | null;
   raised_by_name: string | null;
   raised_by_contact: string | null;
+  raised_under_name: string | null;
+  nominee_name: string | null;
   remarks: string | null;
   notes: string | null;
 };

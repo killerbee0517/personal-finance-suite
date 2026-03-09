@@ -55,7 +55,7 @@ export const repo = {
   saveFD: async (payload: Omit<FD, "id">, id?: number) => {
     if (id) {
       await sql(
-        `UPDATE fd_master SET instrument_type=?,holder_name=?,bank_name=?,branch=?,fd_number=?,deposit_date=?,maturity_date=?,principal=?,interest_rate=?,tenure_days=?,maturity_value_expected=?,maturity_value_actual=?,payout_type=?,status=?,funding_type=?,linked_loan_id=?,reserved_for=?,renewal_flag=?,renewal_from_fd_id=?,renewal_date=?,renewal_new_fd_amount=?,extra_amount_added=?,incentive_expected=?,incentive_received=?,certificate_received=?,certificate_received_date=?,raised_by_name=?,raised_by_contact=?,remarks=?,notes=? WHERE id=?`,
+        `UPDATE fd_master SET instrument_type=?,holder_name=?,bank_name=?,branch=?,fd_number=?,deposit_date=?,maturity_date=?,principal=?,interest_rate=?,tenure_days=?,maturity_value_expected=?,maturity_value_actual=?,payout_type=?,status=?,funding_type=?,linked_loan_id=?,reserved_for=?,renewal_flag=?,renewal_from_fd_id=?,renewal_date=?,renewal_new_fd_amount=?,extra_amount_added=?,incentive_expected=?,incentive_received=?,certificate_received=?,certificate_received_date=?,raised_by_name=?,raised_by_contact=?,raised_under_name=?,nominee_name=?,remarks=?,notes=? WHERE id=?`,
         [
           payload.instrument_type,
           payload.holder_name,
@@ -85,6 +85,8 @@ export const repo = {
           payload.certificate_received_date,
           payload.raised_by_name,
           payload.raised_by_contact,
+          payload.raised_under_name,
+          payload.nominee_name,
           payload.remarks,
           payload.notes,
           id,
@@ -93,7 +95,7 @@ export const repo = {
       return;
     }
     await sql(
-      `INSERT INTO fd_master (instrument_type,holder_name,bank_name,branch,fd_number,deposit_date,maturity_date,principal,interest_rate,tenure_days,maturity_value_expected,maturity_value_actual,payout_type,status,funding_type,linked_loan_id,reserved_for,renewal_flag,renewal_from_fd_id,renewal_date,renewal_new_fd_amount,extra_amount_added,incentive_expected,incentive_received,certificate_received,certificate_received_date,raised_by_name,raised_by_contact,remarks,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO fd_master (instrument_type,holder_name,bank_name,branch,fd_number,deposit_date,maturity_date,principal,interest_rate,tenure_days,maturity_value_expected,maturity_value_actual,payout_type,status,funding_type,linked_loan_id,reserved_for,renewal_flag,renewal_from_fd_id,renewal_date,renewal_new_fd_amount,extra_amount_added,incentive_expected,incentive_received,certificate_received,certificate_received_date,raised_by_name,raised_by_contact,raised_under_name,nominee_name,remarks,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         payload.instrument_type,
         payload.holder_name,
@@ -123,6 +125,8 @@ export const repo = {
         payload.certificate_received_date,
         payload.raised_by_name,
         payload.raised_by_contact,
+        payload.raised_under_name,
+        payload.nominee_name,
         payload.remarks,
         payload.notes,
       ],

@@ -72,6 +72,8 @@ export async function saveFDAction(formData: FormData) {
       certificate_received_date: payload.certificate_received_date || null,
       raised_by_name: payload.raised_by_name || null,
       raised_by_contact: payload.raised_by_contact || null,
+      raised_under_name: payload.raised_under_name || null,
+      nominee_name: payload.nominee_name || null,
       remarks: payload.remarks || null,
       notes: payload.notes || null,
     },
@@ -93,6 +95,8 @@ export async function saveFDAction(formData: FormData) {
         certificate_received_date: renewalSource.certificate_received_date || null,
         raised_by_name: renewalSource.raised_by_name || null,
         raised_by_contact: renewalSource.raised_by_contact || null,
+        raised_under_name: renewalSource.raised_under_name || null,
+        nominee_name: renewalSource.nominee_name || null,
       },
       renewalSource.id,
     );
