@@ -5,6 +5,7 @@ out/
 
 # data
 /data/*.sqlite
+/data/import-previews/
 
 # misc
 .DS_Store

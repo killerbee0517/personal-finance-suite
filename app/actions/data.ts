@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseCasFile } from "@/lib/cas";
+import { applyBackupImportPreview, createBackupImportPreview, deleteBackupImportPreview } from "@/lib/backup";
 import { ensureInitialized, resetSeedData } from "@/lib/init";
 import { bondSchema, epfSchema, fdSchema, insuranceSchema, loanSchema, ppfSchema, rdSchema } from "@/lib/schemas";
 import { regenerateAlerts, repo } from "@/lib/services";
@@ -398,4 +399,35 @@ export async function resetDataAction() {
   await refreshAlertsAndViews();
   revalidatePath("/");
   redirect("/settings");
+}
+
+export async function createBackupPreviewAction(formData: FormData) {
+  const ready = await ensureInitialized();
+  if (!ready) throw new Error("DB not connected");
+
+  const file = formData.get("backup_file");
+  if (!(file instanceof File)) throw new Error("No backup file selected");
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const previewId = await createBackupImportPreview(bytes, file.name);
+
+  redirect(`/settings?preview=${previewId}`);
+}
+
+export async function applyBackupPreviewAction(formData: FormData) {
+  const ready = await ensureInitialized();
+  if (!ready) throw new Error("DB not connected");
+
+  const previewId = String(formData.get("preview_id") || "");
+  if (!previewId) throw new Error("Preview id missing");
+
+  await applyBackupImportPreview(previewId);
+  await refreshAlertsAndViews();
+  redirect("/settings?import=applied");
+}
+
+export async function rejectBackupPreviewAction(formData: FormData) {
+  const previewId = String(formData.get("preview_id") || "");
+  if (previewId) await deleteBackupImportPreview(previewId);
+  redirect("/settings?import=rejected");
 }
