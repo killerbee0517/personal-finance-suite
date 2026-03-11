@@ -27,6 +27,7 @@ export async function ensureInitialized() {
     await pool.query(`CREATE TABLE IF NOT EXISTS fd_master (
       id INT AUTO_INCREMENT PRIMARY KEY,
       instrument_type VARCHAR(60) NOT NULL DEFAULT 'fd',
+      institution_type VARCHAR(60) NOT NULL DEFAULT 'bank',
       holder_name VARCHAR(120) NOT NULL,
       bank_name VARCHAR(120) NOT NULL,
       branch VARCHAR(120),
@@ -50,8 +51,11 @@ export async function ensureInitialized() {
       extra_amount_added DOUBLE NULL,
       incentive_expected DOUBLE NULL,
       incentive_received DOUBLE NULL,
+      incentive_percentage DOUBLE NULL,
       certificate_received TINYINT NOT NULL DEFAULT 0,
       certificate_received_date DATE NULL,
+      is_joint_account TINYINT NOT NULL DEFAULT 0,
+      payment_mode VARCHAR(40) NOT NULL DEFAULT 'bank_transfer',
       raised_by_name VARCHAR(120) NULL,
       raised_by_contact VARCHAR(120) NULL,
       raised_under_name VARCHAR(120) NULL,
@@ -62,8 +66,12 @@ export async function ensureInitialized() {
 
     await ensureColumnExists("fd_master", "instrument_type", "instrument_type VARCHAR(60) NOT NULL DEFAULT 'fd'");
     await ensureColumnExists("fd_master", "renewal_from_fd_id", "renewal_from_fd_id INT NULL");
+    await ensureColumnExists("fd_master", "institution_type", "institution_type VARCHAR(60) NOT NULL DEFAULT 'bank'");
     await ensureColumnExists("fd_master", "certificate_received", "certificate_received TINYINT NOT NULL DEFAULT 0");
     await ensureColumnExists("fd_master", "certificate_received_date", "certificate_received_date DATE NULL");
+    await ensureColumnExists("fd_master", "incentive_percentage", "incentive_percentage DOUBLE NULL");
+    await ensureColumnExists("fd_master", "is_joint_account", "is_joint_account TINYINT NOT NULL DEFAULT 0");
+    await ensureColumnExists("fd_master", "payment_mode", "payment_mode VARCHAR(40) NOT NULL DEFAULT 'bank_transfer'");
     await ensureColumnExists("fd_master", "raised_by_name", "raised_by_name VARCHAR(120) NULL");
     await ensureColumnExists("fd_master", "raised_by_contact", "raised_by_contact VARCHAR(120) NULL");
     await ensureColumnExists("fd_master", "raised_under_name", "raised_under_name VARCHAR(120) NULL");
@@ -463,12 +471,12 @@ export async function resetSeedData() {
   );
 
   await pool.query(
-    `INSERT INTO fd_master (id, instrument_type, holder_name, bank_name, branch, fd_number, deposit_date, maturity_date, principal, interest_rate, tenure_days, maturity_value_expected, maturity_value_actual, payout_type, status, funding_type, linked_loan_id, reserved_for, renewal_flag, renewal_from_fd_id, renewal_date, renewal_new_fd_amount, extra_amount_added, incentive_expected, incentive_received, certificate_received, certificate_received_date, raised_by_name, raised_by_contact, raised_under_name, nominee_name, remarks, notes)
+    `INSERT INTO fd_master (id, instrument_type, institution_type, holder_name, bank_name, branch, fd_number, deposit_date, maturity_date, principal, interest_rate, tenure_days, maturity_value_expected, maturity_value_actual, payout_type, status, funding_type, linked_loan_id, reserved_for, renewal_flag, renewal_from_fd_id, renewal_date, renewal_new_fd_amount, extra_amount_added, incentive_expected, incentive_received, incentive_percentage, certificate_received, certificate_received_date, is_joint_account, payment_mode, raised_by_name, raised_by_contact, raised_under_name, nominee_name, remarks, notes)
     VALUES
-    (1,'fd','Owner','SBI','Whitefield','SBIFD001', ?, ?, 2000000, 7.2, 365, 2144000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 0, NULL, NULL, NULL, 0, 12000, 7000, 1, ?, 'Ravi K', '9876543210', 'Suresh N', 'Spouse', 'Core emergency ladder deposit', 'Primary annual FD'),
-    (2,'fd','Owner','ICICI Bank','HSR','ICFD902', ?, ?, 1800000, 7.6, 370, 1948000, NULL, 'Cumulative', 'active', 'Loan-Backed', 2, NULL, 0, NULL, NULL, NULL, 0, 15000, 5000, 1, ?, 'Anita S', '9988776655', 'Anita S', 'Father', 'Lien marked against OD facility', 'Linked to OD'),
-    (3,'subordinate_debt','Owner','Axis Bank','Koramangala','AXFD200', ?, ?, 1250000, 7.05, 300, 1323000, NULL, 'Monthly Interest', 'active', 'Self', NULL, 'House Renovation', 0, NULL, NULL, NULL, 0, 9000, 9000, 0, NULL, 'Deepak M', '9123456780', 'Deepak M', 'Mother', 'Reserved corpus for planned renovation', 'Reserved fund'),
-    (4,'ncd','Owner','HDFC Bank','Marathahalli','HDFD099', ?, ?, 950000, 7.4, 545, 1069000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 1, 1, ?, 1120000, 170000, 6000, 0, 1, ?, 'Manoj P', '9001122334', 'Manoj P', 'Spouse', 'Renewed with additional top-up capital', 'Top-up planned')`,
+    (1,'fd','bank','Owner','SBI','Whitefield','SBIFD001', ?, ?, 2000000, 7.2, 365, 2144000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 0, NULL, NULL, NULL, 0, 12000, 7000, 0.60, 1, ?, 0, 'bank_transfer', 'Ravi K', '9876543210', 'Suresh N', 'Spouse', 'Core emergency ladder deposit', 'Primary annual FD'),
+    (2,'fd','bank','Owner','ICICI Bank','HSR','ICFD902', ?, ?, 1800000, 7.6, 370, 1948000, NULL, 'Cumulative', 'active', 'Loan-Backed', 2, NULL, 0, NULL, NULL, NULL, 0, 15000, 5000, 0.83, 1, ?, 1, 'bank_transfer', 'Anita S', '9988776655', 'Anita S', 'Father', 'Lien marked against OD facility', 'Linked to OD'),
+    (3,'subordinate_debt','nbfc','Owner','Axis Bank','Koramangala','AXFD200', ?, ?, 1250000, 7.05, 300, 1323000, NULL, 'Monthly Interest', 'active', 'Self', NULL, 'House Renovation', 0, NULL, NULL, NULL, 0, 9000, 9000, 0.72, 0, NULL, 0, 'upi', 'Deepak M', '9123456780', 'Deepak M', 'Mother', 'Reserved corpus for planned renovation', 'Reserved fund'),
+    (4,'ncd','nbfc','Owner','HDFC Bank','Marathahalli','HDFD099', ?, ?, 950000, 7.4, 545, 1069000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 1, 1, ?, 1120000, 170000, 6000, 0, 0.63, 1, ?, 0, 'bank_transfer', 'Manoj P', '9001122334', 'Manoj P', 'Spouse', 'Renewed with additional top-up capital', 'Top-up planned')`,
     [
       today.subtract(120, "day").format("YYYY-MM-DD"),
       today.add(245, "day").format("YYYY-MM-DD"),

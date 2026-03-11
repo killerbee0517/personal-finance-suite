@@ -1,6 +1,7 @@
-﻿export type FD = {
+export type FD = {
   id: number;
   instrument_type: string;
+  institution_type: string;
   holder_name: string;
   bank_name: string;
   branch: string;
@@ -24,8 +25,11 @@
   extra_amount_added: number | null;
   incentive_expected: number | null;
   incentive_received: number | null;
+  incentive_percentage: number | null;
   certificate_received: number;
   certificate_received_date: string | null;
+  is_joint_account: number;
+  payment_mode: string;
   raised_by_name: string | null;
   raised_by_contact: string | null;
   raised_under_name: string | null;
@@ -245,6 +249,9 @@ export type AlertItem = {
   status: string;
   created_at: string;
 };
+
+
+
 
 
 

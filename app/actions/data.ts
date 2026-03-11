@@ -25,7 +25,7 @@ async function refreshAlertsAndViews() {
     await repo.listInsurancePolicies(),
   );
 
-  ["/dashboard", "/alerts", "/fds", "/loans", "/rds", "/bonds", "/equity", "/epf", "/ppf", "/insurance", "/physical", "/calendar"].forEach((p) =>
+  ["/dashboard", "/alerts", "/fds", "/loans", "/rds", "/bonds", "/equity", "/epf", "/ppf", "/insurance", "/physical", "/certificates", "/calendar"].forEach((p) =>
     revalidatePath(p),
   );
 }
@@ -36,16 +36,20 @@ export async function saveFDAction(formData: FormData) {
 
   const idRaw = formData.get("id");
   const payload = fdSchema.parse(toObj(formData));
+  const existing = idRaw ? await repo.getFD(Number(idRaw)) : undefined;
   const tenure = dayjs(payload.maturity_date).diff(dayjs(payload.deposit_date), "day");
   const expected = payload.principal + (payload.principal * payload.interest_rate * tenure) / 36500;
   const renewalFromId = payload.renewal_from_fd_id || null;
   const renewalSource = renewalFromId ? await repo.getFD(renewalFromId) : undefined;
   const extraAmount = renewalSource ? Math.max(payload.principal - renewalSource.principal, 0) : 0;
   const isRenewal = !!renewalSource;
+  const incentivePercentage = payload.incentive_percentage || 0;
+  const incentiveExpectedFromPercent = Number(((payload.principal * incentivePercentage) / 100).toFixed(2));
 
   await repo.saveFD(
     {
       instrument_type: payload.instrument_type,
+      institution_type: payload.institution_type,
       holder_name: payload.holder_name,
       bank_name: payload.bank_name,
       branch: payload.branch,
@@ -58,7 +62,7 @@ export async function saveFDAction(formData: FormData) {
       maturity_value_expected: expected,
       maturity_value_actual: null,
       payout_type: payload.payout_type,
-      status: payload.status,
+      status: payload.status || existing?.status || "active",
       funding_type: payload.funding_type,
       linked_loan_id: payload.linked_loan_id || null,
       reserved_for: payload.reserved_for || null,
@@ -67,10 +71,13 @@ export async function saveFDAction(formData: FormData) {
       renewal_date: isRenewal ? payload.deposit_date : null,
       renewal_new_fd_amount: isRenewal ? payload.principal : null,
       extra_amount_added: extraAmount,
-      incentive_expected: payload.incentive_expected || 0,
+      incentive_expected: incentiveExpectedFromPercent,
       incentive_received: payload.incentive_received || 0,
+      incentive_percentage: incentivePercentage,
       certificate_received: payload.certificate_received ? 1 : 0,
       certificate_received_date: payload.certificate_received_date || null,
+      is_joint_account: payload.is_joint_account ? 1 : 0,
+      payment_mode: payload.payment_mode || "bank_transfer",
       raised_by_name: payload.raised_by_name || null,
       raised_by_contact: payload.raised_by_contact || null,
       raised_under_name: payload.raised_under_name || null,
@@ -92,8 +99,12 @@ export async function saveFDAction(formData: FormData) {
         renewal_date: payload.deposit_date,
         renewal_new_fd_amount: payload.principal,
         extra_amount_added: extraAmount,
+        institution_type: renewalSource.institution_type || "bank",
+        incentive_percentage: renewalSource.incentive_percentage || 0,
         certificate_received: renewalSource.certificate_received || 0,
         certificate_received_date: renewalSource.certificate_received_date || null,
+        is_joint_account: renewalSource.is_joint_account || 0,
+        payment_mode: renewalSource.payment_mode || "bank_transfer",
         raised_by_name: renewalSource.raised_by_name || null,
         raised_by_contact: renewalSource.raised_by_contact || null,
         raised_under_name: renewalSource.raised_under_name || null,
@@ -373,6 +384,31 @@ export async function savePhysicalAssetAction(formData: FormData) {
 
   await refreshAlertsAndViews();
   redirect("/physical");
+}
+
+export async function updateCertificateReceiptAction(formData: FormData) {
+  const ready = await ensureInitialized();
+  if (!ready) throw new Error("DB not connected");
+
+  const fdId = Number(formData.get("fd_id"));
+  const receivedDate = String(formData.get("certificate_received_date") || dayjs().format("YYYY-MM-DD"));
+  if (!Number.isFinite(fdId)) throw new Error("Invalid deposit id");
+
+  const fd = await repo.getFD(fdId);
+  if (!fd) throw new Error("Deposit not found");
+  const { id: _fdId, ...payload } = fd;
+
+  await repo.saveFD(
+    {
+      ...payload,
+      certificate_received: 1,
+      certificate_received_date: receivedDate,
+    },
+    fdId,
+  );
+
+  await refreshAlertsAndViews();
+  redirect("/certificates");
 }
 
 export async function importCasAction(formData: FormData) {

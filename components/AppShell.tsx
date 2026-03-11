@@ -24,6 +24,7 @@ const nav = [
   ["PPF", "/ppf"],
   ["Insurance", "/insurance"],
   ["Physical Assets", "/physical"],
+  ["Certificates", "/certificates"],
   ["Calendar", "/calendar"],
   ["Incentive Tracker", "/incentives"],
   ["Alerts Center", "/alerts"],
@@ -99,7 +100,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-between px-4 py-3 lg:px-8">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.15em] text-slate-500">Personal Finance Suite</p>
-                <p className="text-sm font-semibold text-slate-800">Clean Workspace</p>
               </div>
 
               <div className="relative" ref={panelRef}>
