@@ -4,16 +4,23 @@ import { saveRDAction } from "@/app/actions/data";
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-muted-foreground">{label}</span>
       {children}
     </label>
   );
 }
 
 export default function RDNewPage() {
+  const defaultMonthly = 10000;
+  const defaultInstallments = 24;
+  const defaultRate = 7;
+  const defaultExpected = Number(
+    (defaultMonthly * defaultInstallments + (defaultMonthly * defaultInstallments * defaultRate * defaultInstallments) / 1200).toFixed(2),
+  );
+
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">Add RD</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Add RD</h1>
       <form action={saveRDAction} className="ta-card space-y-4 p-5">
         <div className="grid gap-4 md:grid-cols-3">
           <Field label="Holder Name"><input name="holder_name" className="ta-input" defaultValue="Owner" /></Field>
@@ -32,7 +39,7 @@ export default function RDNewPage() {
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label="Interest Rate (%)"><input name="interest_rate" className="ta-input" defaultValue="7" /></Field>
-          <Field label="Status"><input name="status" className="ta-input" defaultValue="active" /></Field>
+          <Field label="Expected Maturity Value"><input name="maturity_value_expected" className="ta-input" defaultValue={defaultExpected} /></Field>
           <Field label="Reserved For"><input name="reserved_for" className="ta-input" /></Field>
         </div>
         <Field label="Notes"><textarea name="notes" className="ta-input" rows={3} /></Field>

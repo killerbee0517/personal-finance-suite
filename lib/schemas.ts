@@ -1,9 +1,15 @@
-﻿import { z } from "zod";
+import { z } from "zod";
+
+const optionalNumber = z.preprocess((value) => {
+  if (value === "" || value === null || value === undefined) return undefined;
+  return value;
+}, z.coerce.number().optional());
 
 export const fdSchema = z.object({
   instrument_type: z.string().min(1),
   institution_type: z.string().min(1),
   holder_name: z.string().min(1),
+  funded_by_name: z.string().optional(),
   bank_name: z.string().min(1),
   branch: z.string().min(1),
   fd_number: z.string().min(1),
@@ -14,22 +20,21 @@ export const fdSchema = z.object({
   payout_type: z.string().min(1),
   status: z.string().optional(),
   funding_type: z.string().min(1),
-  renewal_from_fd_id: z.coerce.number().optional(),
-  linked_loan_id: z.coerce.number().optional(),
+  renewal_from_fd_id: optionalNumber,
+  linked_loan_id: optionalNumber,
   reserved_for: z.string().optional(),
-  incentive_expected: z.coerce.number().optional(),
-  incentive_received: z.coerce.number().optional(),
-  incentive_percentage: z.coerce.number().optional(),
-  certificate_received: z.coerce.number().optional(),
+  incentive_expected: optionalNumber,
+  incentive_received: optionalNumber,
+  incentive_percentage: optionalNumber,
+  certificate_received: optionalNumber,
   certificate_received_date: z.string().optional(),
-  is_joint_account: z.coerce.number().optional(),
+  is_joint_account: optionalNumber,
   payment_mode: z.string().optional(),
   raised_by_name: z.string().optional(),
   raised_by_contact: z.string().optional(),
   raised_under_name: z.string().optional(),
   nominee_name: z.string().optional(),
   remarks: z.string().optional(),
-  notes: z.string().optional(),
 });
 
 export const loanSchema = z.object({
@@ -45,7 +50,7 @@ export const loanSchema = z.object({
   emi_amount: z.coerce.number().optional(),
   outstanding_principal: z.coerce.number().min(0),
   bullet_closure_amount: z.coerce.number().optional(),
-  status: z.string().min(1),
+  status: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -60,7 +65,8 @@ export const rdSchema = z.object({
   total_installments: z.coerce.number().int().positive(),
   installments_paid: z.coerce.number().int().min(0),
   interest_rate: z.coerce.number().positive(),
-  status: z.string().min(1),
+  maturity_value_expected: optionalNumber,
+  status: z.string().optional(),
   reserved_for: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -92,7 +98,7 @@ export const epfSchema = z.object({
   employer_monthly: z.coerce.number().min(0),
   interest_rate: z.coerce.number().min(0),
   last_interest_credit_date: z.string().min(10),
-  status: z.string().min(1),
+  status: z.string().optional(),
   notes: z.string().optional(),
 });
 

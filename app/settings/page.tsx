@@ -5,21 +5,38 @@ import {
   rejectBackupPreviewAction,
   resetDataAction,
 } from "@/app/actions/data";
+import { getCurrentUser } from "@/lib/auth";
 import { loadBackupImportPreview } from "@/lib/backup";
 
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ preview?: string; import?: string }>;
+  searchParams?: Promise<{ preview?: string; import?: string; error?: string; updated?: string }>;
 }) {
   const params = await searchParams;
   const previewId = params?.preview;
   const importStatus = params?.import;
+  const error = params?.error;
+  const updated = params?.updated;
+  const me = await getCurrentUser();
+  const isDummyUser = me?.username === "dummy" && me?.tenant_id === 1;
   const preview = previewId ? await loadBackupImportPreview(previewId) : null;
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      {error ? (
+        <div className="ta-card border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          {error}
+        </div>
+      ) : null}
+
+      {updated ? (
+        <div className="ta-card border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          Sample data reset completed for dummy account.
+        </div>
+      ) : null}
 
       {importStatus === "applied" ? (
         <div className="ta-card border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
@@ -45,11 +62,15 @@ export default async function SettingsPage({
 
       <div className="ta-card p-4">
         <h2 className="mb-2 font-semibold">Seed / Reset Sample Data</h2>
-        <form action={resetDataAction}>
-          <button type="submit" className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">
-            Reset & Reseed
-          </button>
-        </form>
+        {isDummyUser ? (
+          <form action={resetDataAction}>
+            <button type="submit" className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white">
+              Reset & Reseed
+            </button>
+          </form>
+        ) : (
+          <p className="text-sm text-slate-600">Available only in dummy account.</p>
+        )}
       </div>
 
       <div className="ta-card space-y-3 p-4">

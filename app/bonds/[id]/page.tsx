@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
+import dayjs from "dayjs";
 import { notFound } from "next/navigation";
 import { saveBondAction } from "@/app/actions/data";
 import { DbRequired } from "@/components/DbRequired";
+import { StatCard } from "@/components/StatCard";
 import { formatCurrency } from "@/lib/format";
 import { ensureInitialized } from "@/lib/init";
+import { bondCurrentValue, bondProjectedValue, cagrPercent, potentialReturnPercent } from "@/lib/returns";
 import { repo } from "@/lib/services";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -21,11 +24,20 @@ export default async function BondDetailPage({ params }: { params: Promise<{ id:
   const bond = await repo.getBond(Number((await params).id));
   if (!bond) return notFound();
   const coupons = await repo.listBondCouponsByBond(bond.id);
+  const today = dayjs().format("YYYY-MM-DD");
+  const currentValue = bondCurrentValue(bond, coupons);
+  const projectedValue = bondProjectedValue(bond, coupons);
+  const currentCagr = cagrPercent(bond.principal_invested, currentValue, bond.investment_date, today);
+  const potentialReturn = potentialReturnPercent(currentValue, projectedValue);
 
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Bond Detail</h1>
       <div className="ta-card p-4 text-sm">{bond.platform} | {bond.issuer_name} | {formatCurrency(bond.principal_invested)} | {bond.coupon_rate}%</div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <StatCard label="Current CAGR" value={currentCagr ?? Number.NaN} valueType="percent" asOf={today} />
+        <StatCard label="Potential Return" value={potentialReturn ?? Number.NaN} valueType="percent" asOf={bond.maturity_date} />
+      </div>
       <form action={saveBondAction} className="ta-card space-y-4 p-5">
         <input type="hidden" name="id" value={bond.id} />
         <div className="grid gap-4 md:grid-cols-3">

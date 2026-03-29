@@ -52,7 +52,7 @@ export function CalendarMonthView({ events }: { events: EventItem[] }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">{month.format("MMMM YYYY")}</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{month.format("MMMM YYYY")}</h2>
         <div className="flex gap-2">
           <button className="ta-btn-outline" onClick={() => setMonth((m) => m.subtract(1, "month"))}>Prev</button>
           <button className="ta-btn-outline" onClick={() => { const now = dayjs().startOf("month"); setMonth(now); setSelectedDate(dayjs().format("YYYY-MM-DD")); }}>Today</button>
@@ -61,9 +61,9 @@ export function CalendarMonthView({ events }: { events: EventItem[] }) {
       </div>
 
       <div className="ta-card overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+        <div className="grid grid-cols-7 border-b border-[#e5e7eb] bg-[#f8fafc]">
           {weekdays.map((w) => (
-            <div key={w} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{w}</div>
+            <div key={w} className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{w}</div>
           ))}
         </div>
 
@@ -78,13 +78,13 @@ export function CalendarMonthView({ events }: { events: EventItem[] }) {
               <button
                 key={key}
                 onClick={() => setSelectedDate(key)}
-                className={`min-h-[120px] border-b border-r border-slate-100 p-2 text-left align-top transition ${isSelected ? "bg-blue-50" : "bg-white hover:bg-slate-50"}`}
+                className={`min-h-[120px] border-b border-r border-[#eef2f7] p-2 text-left align-top transition ${isSelected ? "bg-blue-50" : "bg-white hover:bg-[#f8fafc]"}`}
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? "bg-blue-600 text-white" : inMonth ? "text-slate-800" : "text-slate-400"}`}>
+                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? "bg-blue-600 text-white" : inMonth ? "text-foreground" : "text-muted-foreground"}`}>
                     {d.date()}
                   </span>
-                  {dayEvents.length > 0 ? <span className="text-[10px] font-semibold text-slate-500">{dayEvents.length}</span> : null}
+                  {dayEvents.length > 0 ? <span className="text-[10px] font-semibold text-muted-foreground">{dayEvents.length}</span> : null}
                 </div>
                 <div className="space-y-1">
                   {dayEvents.slice(0, 3).map((e, i) => (
@@ -92,7 +92,7 @@ export function CalendarMonthView({ events }: { events: EventItem[] }) {
                       {e.title}
                     </div>
                   ))}
-                  {dayEvents.length > 3 ? <div className="text-[10px] text-slate-500">+{dayEvents.length - 3} more</div> : null}
+                  {dayEvents.length > 3 ? <div className="text-[10px] text-muted-foreground">+{dayEvents.length - 3} more</div> : null}
                 </div>
               </button>
             );
@@ -103,14 +103,14 @@ export function CalendarMonthView({ events }: { events: EventItem[] }) {
       <div className="ta-card p-4">
         <p className="mb-2 text-sm font-semibold">Events on {dayjs(selectedDate).format("DD MMM YYYY")}</p>
         {selectedEvents.length === 0 ? (
-          <p className="text-sm text-slate-500">No events for this date.</p>
+          <p className="text-sm text-muted-foreground">No events for this date.</p>
         ) : (
           <div className="space-y-2">
             {selectedEvents.map((e, i) => (
-              <div key={`${selectedDate}-${i}`} className="rounded-lg border border-slate-200 bg-white p-3">
+              <div key={`${selectedDate}-${i}`} className="rounded-lg border border-[#e5e7eb] bg-white p-3">
                 <p className="text-sm font-semibold">{e.title}</p>
-                <p className="text-xs text-slate-500">{e.type}</p>
-                <p className="mt-1 text-sm text-slate-700">{e.detail}</p>
+                <p className="text-xs text-muted-foreground">{e.type}</p>
+                <p className="mt-1 text-sm text-foreground/80">{e.detail}</p>
               </div>
             ))}
           </div>

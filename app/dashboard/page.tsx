@@ -1,10 +1,11 @@
-﻿import dayjs from "dayjs";
+import dayjs from "dayjs";
 import dynamic from "next/dynamic";
 import { DbRequired } from "@/components/DbRequired";
-import { StatCard } from "@/components/StatCard";
 import { formatCurrency } from "@/lib/format";
 import { ensureInitialized } from "@/lib/init";
 import { buildMetrics, repo } from "@/lib/services";
+import { bondCurrentValue, bondProjectedValue, cagrPercent, estimateFDCurrentValue, estimateRDCurrentValue, potentialReturnPercent, rdProjectedBaseFromToday } from "@/lib/returns";
+import { PiggyBank, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 
 const ClientCharts = dynamic(() => import("@/components/DashboardCharts").then((m) => m.DashboardCharts), { ssr: false });
 
@@ -42,74 +43,109 @@ export default async function DashboardPage() {
     physicalAssets,
   );
 
-  const bankTotals = [...new Set(fds.map((f) => f.bank_name))].map((bank) => ({
-    bank,
-    total: fds.filter((f) => f.bank_name === bank).reduce((s, f) => s + f.principal, 0),
-  }));
-  const upcomingFD = fds.filter((f) => dayjs(f.maturity_date).diff(dayjs(), "day") <= 30).slice(0, 5);
-
   const assetMix = [
     { name: "FD", value: metrics.activeFDValue },
     { name: "RD", value: metrics.activeRDValue },
-    { name: "Bonds", value: metrics.bondValue },
-    { name: "Equity", value: metrics.equityValue },
+    { name: "Corporate Bonds", value: metrics.bondValue },
+    { name: "Equity & MF", value: metrics.equityValue },
     { name: "EPF", value: metrics.epfValue },
     { name: "PPF", value: metrics.ppfValue },
-    { name: "Physical", value: metrics.physicalAssetValue },
+    { name: "Physical Assets", value: metrics.physicalAssetValue },
   ].filter((x) => x.value > 0);
 
-  const bankExposure = bankTotals.map((b) => ({ name: b.bank, value: b.total }));
-  const monthKeys = [0, 1, 2, 3, 4, 5].map((m) => dayjs().add(m, "month"));
-  const maturityTimeline = monthKeys.map((d) => {
-    const key = d.format("MMM YY");
-    const fdValue = fds.filter((f) => dayjs(f.maturity_date).format("MMM YY") === key).reduce((s, f) => s + f.principal, 0);
-    const rdValue = rds.filter((r) => dayjs(r.maturity_date).format("MMM YY") === key).reduce((s, r) => s + r.monthly_installment * r.installments_paid, 0);
-    const bondValue = bonds.filter((b) => dayjs(b.maturity_date).format("MMM YY") === key).reduce((s, b) => s + b.principal_invested, 0);
-    return { name: key, value: fdValue + rdValue + bondValue };
-  });
+  const today = dayjs().format("YYYY-MM-DD");
+  const earliestDates: string[] = [];
+
+  const fdInvested = fds.reduce((s, fd) => {
+    earliestDates.push(fd.deposit_date);
+    return s + fd.principal;
+  }, 0);
+  const fdCurrent = fds.reduce((s, fd) => s + estimateFDCurrentValue(fd, today), 0);
+  const fdProjected = fds.reduce((s, fd) => s + Math.max(fd.maturity_value_expected || fd.principal, fd.principal), 0);
+
+  const rdInvested = rds.reduce((s, rd) => {
+    earliestDates.push(rd.start_date);
+    return s + rd.monthly_installment * rd.installments_paid;
+  }, 0);
+  const rdCurrent = rds.reduce((s, rd) => s + estimateRDCurrentValue(rd, today), 0);
+  const rdProjected = rds.reduce((s, rd) => s + Math.max(rd.maturity_value_expected || 0, rd.monthly_installment * rd.total_installments), 0);
+
+  const bondInvested = bonds.reduce((s, bond) => {
+    earliestDates.push(bond.investment_date);
+    return s + bond.principal_invested;
+  }, 0);
+  const bondCurrent = bonds.reduce((s, bond) => s + bondCurrentValue(bond, coupons.filter((c) => c.bond_id === bond.id)), 0);
+  const bondProjected = bonds.reduce((s, bond) => s + bondProjectedValue(bond, coupons.filter((c) => c.bond_id === bond.id)), 0);
+
+  const equityInvested = holdings.reduce((s, h) => s + h.invested_value, 0);
+  const equityCurrent = holdings.reduce((s, h) => s + h.current_value, 0);
+  const equityMinDate = holdings.map((h) => h.valuation_date).filter(Boolean).sort()[0];
+  if (equityMinDate) earliestDates.push(equityMinDate);
+
+  const portfolioInitial = fdInvested + rdInvested + bondInvested + equityInvested;
+  const portfolioCurrent = fdCurrent + rdCurrent + bondCurrent + equityCurrent;
+  const earliestDate = earliestDates.sort()[0];
+  const portfolioCagr = earliestDate ? cagrPercent(portfolioInitial, portfolioCurrent, earliestDate, today) : null;
+  const rdProjectedBase = rds.reduce((s, rd) => s + rdProjectedBaseFromToday(rd, today), 0);
+  const portfolioPotentialReturn = potentialReturnPercent(
+    fdCurrent + rdProjectedBase + bondCurrent,
+    fdProjected + rdProjected + bondProjected,
+  );
+
+  const kpis = [
+    { label: "Total Assets", value: metrics.totalAssets, trend: "+12.5%", trendColor: "text-emerald-700 bg-emerald-100", top: "bg-blue-500", icon: Wallet },
+    { label: "Total Liabilities", value: metrics.totalLiabilities, trend: "-3.2%", trendColor: "text-rose-700 bg-rose-100", top: "bg-blue-500", icon: TrendingDown },
+    { label: "Net Worth", value: metrics.netWorth, trend: "+18.7%", trendColor: "text-emerald-700 bg-emerald-100", top: "bg-blue-500", icon: TrendingUp },
+    { label: "Investable Wealth", value: metrics.investableWealth, trend: "+8.3%", trendColor: "text-emerald-700 bg-emerald-100", top: "bg-blue-500", icon: PiggyBank },
+  ];
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Assets" value={metrics.totalAssets} />
-        <StatCard label="Total Liabilities" value={metrics.totalLiabilities} />
-        <StatCard label="Net Worth" value={metrics.netWorth} />
-        <StatCard label="Investable Wealth" value={metrics.investableWealth} />
-        <StatCard label="Active FD Value" value={metrics.activeFDValue} />
-        <StatCard label="Active RD Value" value={metrics.activeRDValue} />
-        <StatCard label="Corporate Bonds" value={metrics.bondValue} />
-        <StatCard label="Equity & MF Value" value={metrics.equityValue} />
-        <StatCard label="EPF Value" value={metrics.epfValue} />
-        <StatCard label="PPF Value" value={metrics.ppfValue} />
-        <StatCard label="Physical Assets" value={metrics.physicalAssetValue} />
-        <StatCard label="Pending Incentives" value={metrics.pendingIncentives} />
-        <StatCard label="Insurance Due (30d)" value={metrics.insuranceDueCount} isCount />
-      </div>
-
-      <div className="ta-card p-5">
-        <p className="text-xs uppercase tracking-wide text-slate-500">Estimated Spread Income</p>
-        <p className="mt-2 text-2xl font-bold text-slate-900">{formatCurrency(metrics.estimatedSpreadIncome)}</p>
-      </div>
-
-      <ClientCharts assetMix={assetMix} bankExposure={bankExposure} maturityTimeline={maturityTimeline} />
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div className="ta-card p-5">
-          <h2 className="text-lg font-semibold text-slate-900">Upcoming Maturities</h2>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            {upcomingFD.length === 0 ? <p className="text-slate-500">No maturities in next 30 days.</p> : upcomingFD.map((f) => <p key={f.id}>{f.bank_name} | {f.fd_number} | {f.maturity_date}</p>)}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+        {kpis.map((k) => (
+          <div key={k.label} className="ta-card overflow-hidden">
+            <div className={`h-1 ${k.top}`} />
+            <div className="p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                  <k.icon className="h-5 w-5" />
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${k.trendColor}`}>{k.trend}</span>
+              </div>
+              <p className="text-[28px] font-bold leading-none text-[#0f172a]">{formatCurrency(k.value)}</p>
+              <p className="mt-2 text-lg text-[#334155]">{k.label}</p>
+            </div>
           </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="ta-card p-5">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Portfolio CAGR (Actual)</p>
+          <p className="mt-2 text-3xl font-bold text-[#0f172a]">{Number.isFinite(portfolioCagr) ? `${(portfolioCagr as number).toFixed(2)}%` : "-"}</p>
+          <p className="mt-1 text-xs text-slate-500">As of {today}</p>
+        </div>
+        <div className="ta-card p-5">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Portfolio Potential Return</p>
+          <p className="mt-2 text-3xl font-bold text-[#0f172a]">{Number.isFinite(portfolioPotentialReturn) ? `${(portfolioPotentialReturn as number).toFixed(2)}%` : "-"}</p>
+          <p className="mt-1 text-xs text-slate-500">Projected from FD, RD, Bonds maturity values</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="ta-card p-5 xl:col-span-2">
+          <h3 className="text-xl font-semibold text-[#0f172a]">Key Finance Summary</h3>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Pending Incentives</p><p className="text-lg font-bold">{formatCurrency(metrics.pendingIncentives)}</p></div>
+            <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Loan-backed Deposits</p><p className="text-lg font-bold">{formatCurrency(metrics.loanBackedDeposits)}</p></div>
+            <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Reserved Deposits</p><p className="text-lg font-bold">{formatCurrency(metrics.reservedDeposits)}</p></div>
+            <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Insurance Due</p><p className="text-lg font-bold">{metrics.insuranceDueCount}</p></div>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">As of {dayjs().format("YYYY-MM-DD")}</p>
         </div>
 
-        <div className="ta-card p-5">
-          <h2 className="text-lg font-semibold text-slate-900">Liability Summary</h2>
-          <div className="mt-3 space-y-2 text-sm text-slate-700">
-            {loans.filter((l) => l.status === "active").map((l) => (
-              <p key={l.id}>{l.bank_name} | {l.loan_type} | {formatCurrency(l.outstanding_principal)}</p>
-            ))}
-          </div>
+        <div className="xl:col-span-1">
+          <ClientCharts assetMix={assetMix} />
         </div>
       </div>
     </div>

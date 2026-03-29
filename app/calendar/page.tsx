@@ -24,8 +24,9 @@ export default async function CalendarPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Calendar</h1>
-      {events.length === 0 ? <p className="text-slate-500">No scheduled items yet.</p> : <CalendarMonthView events={events} />}
+      <h1 className="text-3xl font-bold tracking-tight">Calendar</h1>
+      {events.length === 0 ? <p className="text-muted-foreground">No scheduled items yet. Calendar is shown so you can still plan upcoming entries.</p> : null}
+      <CalendarMonthView events={events} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
-﻿import dayjs from "dayjs";
+import dayjs from "dayjs";
+import { getCurrentTenantId } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import {
   AlertItem,
@@ -12,6 +13,7 @@ import {
   FDLoanLink,
   InsurancePolicy,
   Incentive,
+  InvestmentCashflow,
   Loan,
   PhysicalAsset,
   PPFAccount,
@@ -33,6 +35,7 @@ const dateCols = [
   "valuation_date",
   "txn_date",
   "imported_at",
+  "cashflow_date",
   "next_due_date",
   "fy_deadline_date",
   "last_interest_credit_date",
@@ -48,6 +51,8 @@ const normalize = <T extends Record<string, unknown>>(row: T): T => {
   return out as T;
 };
 
+const tenant = async () => getCurrentTenantId();
+
 export const repo = {
   listFDs: async () => (await sql<FD>("SELECT * FROM fd_master ORDER BY maturity_date ASC")).map(normalize),
   getFD: async (id: number) => {
@@ -57,11 +62,12 @@ export const repo = {
   saveFD: async (payload: Omit<FD, "id">, id?: number) => {
     if (id) {
       await sql(
-        `UPDATE fd_master SET instrument_type=?,institution_type=?,holder_name=?,bank_name=?,branch=?,fd_number=?,deposit_date=?,maturity_date=?,principal=?,interest_rate=?,tenure_days=?,maturity_value_expected=?,maturity_value_actual=?,payout_type=?,status=?,funding_type=?,linked_loan_id=?,reserved_for=?,renewal_flag=?,renewal_from_fd_id=?,renewal_date=?,renewal_new_fd_amount=?,extra_amount_added=?,incentive_expected=?,incentive_received=?,incentive_percentage=?,certificate_received=?,certificate_received_date=?,is_joint_account=?,payment_mode=?,raised_by_name=?,raised_by_contact=?,raised_under_name=?,nominee_name=?,remarks=?,notes=? WHERE id=?`,
+        `UPDATE fd_master SET instrument_type=?,institution_type=?,holder_name=?,funded_by_name=?,bank_name=?,branch=?,fd_number=?,deposit_date=?,maturity_date=?,principal=?,interest_rate=?,tenure_days=?,maturity_value_expected=?,maturity_value_actual=?,payout_type=?,status=?,funding_type=?,linked_loan_id=?,reserved_for=?,renewal_flag=?,renewal_from_fd_id=?,renewal_date=?,renewal_new_fd_amount=?,extra_amount_added=?,incentive_expected=?,incentive_received=?,incentive_percentage=?,certificate_received=?,certificate_received_date=?,is_joint_account=?,payment_mode=?,raised_by_name=?,raised_by_contact=?,raised_under_name=?,nominee_name=?,remarks=?,notes=? WHERE id=?`,
         [
           payload.instrument_type,
           payload.institution_type,
           payload.holder_name,
+          payload.funded_by_name,
           payload.bank_name,
           payload.branch,
           payload.fd_number,
@@ -101,11 +107,12 @@ export const repo = {
       return;
     }
     await sql(
-      `INSERT INTO fd_master (instrument_type,institution_type,holder_name,bank_name,branch,fd_number,deposit_date,maturity_date,principal,interest_rate,tenure_days,maturity_value_expected,maturity_value_actual,payout_type,status,funding_type,linked_loan_id,reserved_for,renewal_flag,renewal_from_fd_id,renewal_date,renewal_new_fd_amount,extra_amount_added,incentive_expected,incentive_received,incentive_percentage,certificate_received,certificate_received_date,is_joint_account,payment_mode,raised_by_name,raised_by_contact,raised_under_name,nominee_name,remarks,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO fd_master (instrument_type,institution_type,holder_name,funded_by_name,bank_name,branch,fd_number,deposit_date,maturity_date,principal,interest_rate,tenure_days,maturity_value_expected,maturity_value_actual,payout_type,status,funding_type,linked_loan_id,reserved_for,renewal_flag,renewal_from_fd_id,renewal_date,renewal_new_fd_amount,extra_amount_added,incentive_expected,incentive_received,incentive_percentage,certificate_received,certificate_received_date,is_joint_account,payment_mode,raised_by_name,raised_by_contact,raised_under_name,nominee_name,remarks,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         payload.instrument_type,
         payload.institution_type,
         payload.holder_name,
+        payload.funded_by_name,
         payload.bank_name,
         payload.branch,
         payload.fd_number,
@@ -500,6 +507,24 @@ export const repo = {
 
   listLinks: async () => (await sql<FDLoanLink>("SELECT * FROM fd_loan_link")).map(normalize),
   listIncentives: async () => (await sql<Incentive>("SELECT * FROM incentive_tracker ORDER BY expected_date ASC")).map(normalize),
+  updateIncentiveReceipt: async (id: number, receivedAmount: number, receivedDate: string) => {
+    const rows = await sql<Incentive>("SELECT * FROM incentive_tracker WHERE id=?", [id]);
+    const current = rows[0] ? normalize(rows[0]) : undefined;
+    if (!current) return;
+
+    const nextReceived = Number((current.received_amount + Math.max(receivedAmount, 0)).toFixed(2));
+    const nextPending = Number(Math.max(current.expected_amount - nextReceived, 0).toFixed(2));
+    const today = dayjs();
+    const delayDays = dayjs(receivedDate).diff(dayjs(current.expected_date), "day");
+    const nextStatus = nextPending <= 0 ? "received" : nextReceived > 0 ? "partial" : current.status;
+
+    await sql(
+      `UPDATE incentive_tracker
+       SET received_amount=?, pending_amount=?, received_date=?, status=?, delay_days=?
+       WHERE id=?`,
+      [nextReceived, nextPending, receivedDate, nextStatus, Math.max(delayDays, 0), id],
+    );
+  },
 
   listEquityHoldings: async () => (await sql<EquityHolding>("SELECT * FROM equity_holdings ORDER BY current_value DESC")).map(normalize),
   listEquityTransactions: async () => (await sql<EquityTransaction>("SELECT * FROM equity_transactions ORDER BY txn_date DESC")).map(normalize),
@@ -555,6 +580,9 @@ export const repo = {
   },
 
   listAlerts: async () => (await sql<AlertItem>("SELECT * FROM alerts ORDER BY due_date ASC")).map(normalize),
+  updateAlertStatus: async (id: number, status: string) => {
+    await sql("UPDATE alerts SET status=? WHERE id=?", [status, id]);
+  },
   replaceAlerts: async (alerts: Omit<AlertItem, "id">[]) => {
     await sql("DELETE FROM alerts");
     for (const a of alerts) {
@@ -569,6 +597,28 @@ export const repo = {
         a.created_at,
       ]);
     }
+  },
+
+  listInvestmentCashflows: async () =>
+    (await sql<InvestmentCashflow>("SELECT * FROM investment_cashflows ORDER BY cashflow_date ASC, id ASC")).map(normalize),
+  addInvestmentCashflow: async (payload: Omit<InvestmentCashflow, "id" | "created_at">) => {
+    await sql(
+      `INSERT INTO investment_cashflows (instrument_type,instrument_id,holder_name,funded_by_name,cashflow_date,amount,flow_type,source,notes) VALUES (?,?,?,?,?,?,?,?,?)`,
+      [
+        payload.instrument_type,
+        payload.instrument_id,
+        payload.holder_name,
+        payload.funded_by_name,
+        payload.cashflow_date,
+        payload.amount,
+        payload.flow_type,
+        payload.source,
+        payload.notes,
+      ],
+    );
+  },
+  deleteInvestmentCashflow: async (id: number) => {
+    await sql("DELETE FROM investment_cashflows WHERE id=?", [id]);
   },
 };
 
@@ -828,3 +878,4 @@ export async function regenerateAlerts(
 
   await repo.replaceAlerts(alerts);
 }
+

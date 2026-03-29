@@ -1,5 +1,6 @@
 ﻿import dayjs from "dayjs";
 import { adminPool, dbName, pool } from "@/lib/db";
+import { hashPassword } from "@/lib/auth";
 
 let initialized = false;
 
@@ -29,6 +30,7 @@ export async function ensureInitialized() {
       instrument_type VARCHAR(60) NOT NULL DEFAULT 'fd',
       institution_type VARCHAR(60) NOT NULL DEFAULT 'bank',
       holder_name VARCHAR(120) NOT NULL,
+      funded_by_name VARCHAR(120) NULL,
       bank_name VARCHAR(120) NOT NULL,
       branch VARCHAR(120),
       fd_number VARCHAR(120) NOT NULL,
@@ -67,6 +69,7 @@ export async function ensureInitialized() {
     await ensureColumnExists("fd_master", "instrument_type", "instrument_type VARCHAR(60) NOT NULL DEFAULT 'fd'");
     await ensureColumnExists("fd_master", "renewal_from_fd_id", "renewal_from_fd_id INT NULL");
     await ensureColumnExists("fd_master", "institution_type", "institution_type VARCHAR(60) NOT NULL DEFAULT 'bank'");
+    await ensureColumnExists("fd_master", "funded_by_name", "funded_by_name VARCHAR(120) NULL");
     await ensureColumnExists("fd_master", "certificate_received", "certificate_received TINYINT NOT NULL DEFAULT 0");
     await ensureColumnExists("fd_master", "certificate_received_date", "certificate_received_date DATE NULL");
     await ensureColumnExists("fd_master", "incentive_percentage", "incentive_percentage DOUBLE NULL");
@@ -290,10 +293,85 @@ export async function ensureInitialized() {
       created_at DATE NOT NULL
     )`);
 
+    await pool.query(`CREATE TABLE IF NOT EXISTS investment_cashflows (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      instrument_type VARCHAR(60) NOT NULL,
+      instrument_id INT NULL,
+      holder_name VARCHAR(120) NOT NULL,
+      funded_by_name VARCHAR(120) NOT NULL,
+      cashflow_date DATE NOT NULL,
+      amount DOUBLE NOT NULL,
+      flow_type VARCHAR(40) NOT NULL,
+      source VARCHAR(40) NOT NULL DEFAULT 'manual',
+      notes TEXT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     await pool.query(`CREATE TABLE IF NOT EXISTS app_meta (
       \`key\` VARCHAR(80) PRIMARY KEY,
       \`value\` VARCHAR(120) NOT NULL
     )`);
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS app_tenants (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(120) NOT NULL,
+      status VARCHAR(40) NOT NULL DEFAULT 'active',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS app_users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(190) NOT NULL UNIQUE,
+      username VARCHAR(80) NOT NULL UNIQUE,
+      tenant_id INT NOT NULL DEFAULT 1,
+      password_hash VARCHAR(255) NOT NULL,
+      failed_login_attempts INT NOT NULL DEFAULT 0,
+      locked_until DATETIME NULL,
+      last_login_at DATETIME NULL,
+      role VARCHAR(40) NOT NULL DEFAULT 'user',
+      status VARCHAR(40) NOT NULL DEFAULT 'active',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS user_sessions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      session_token VARCHAR(255) NOT NULL UNIQUE,
+      expires_at DATETIME NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS app_family_members (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      tenant_id INT NOT NULL,
+      full_name VARCHAR(140) NOT NULL,
+      relationship VARCHAR(80) NOT NULL,
+      phone VARCHAR(40) NULL,
+      email VARCHAR(190) NULL,
+      notes TEXT NULL,
+      status VARCHAR(40) NOT NULL DEFAULT 'active',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    await ensureColumnExists("fd_master", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("loan_master", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("rd_master", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("bond_master", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("bond_coupon_schedule", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("epf_accounts", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("ppf_accounts", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("insurance_policies", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("physical_assets", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("fd_loan_link", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("incentive_tracker", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("equity_holdings", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("equity_transactions", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("cas_import_runs", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("alerts", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("investment_cashflows", "tenant_id", "tenant_id INT NOT NULL DEFAULT 1");
+    await ensureColumnExists("app_users", "failed_login_attempts", "failed_login_attempts INT NOT NULL DEFAULT 0");
+    await ensureColumnExists("app_users", "locked_until", "locked_until DATETIME NULL");
+    await ensureColumnExists("app_users", "last_login_at", "last_login_at DATETIME NULL");
 
     const [rows] = (await pool.query("SELECT value FROM app_meta WHERE `key`='seeded'")) as [Array<{ value: string }>, unknown];
     if (!rows.length || rows[0].value !== "true") {
@@ -305,6 +383,16 @@ export async function ensureInitialized() {
       await backfillAdditionalSeedData();
       await pool.query("INSERT INTO app_meta (`key`,`value`) VALUES ('backfill_v1','true') ON DUPLICATE KEY UPDATE `value`='true'");
     }
+
+    await pool.query("INSERT INTO app_tenants (id, name, status) VALUES (1, 'Dummy Household', 'active') ON DUPLICATE KEY UPDATE name='Dummy Household', status='active'");
+    await pool.query(
+      "INSERT INTO app_users (email, username, tenant_id, password_hash, role, status) VALUES (?, ?, 1, ?, 'admin', 'active') ON DUPLICATE KEY UPDATE tenant_id=1, role='admin', status='active'",
+      ["dummy@local.test", "dummy", hashPassword("dummy1234")],
+    );
+    await pool.query(
+      "INSERT INTO app_users (email, username, tenant_id, password_hash, role, status) VALUES (?, ?, 1, ?, 'super_admin', 'active') ON DUPLICATE KEY UPDATE tenant_id=1, role='super_admin', status='active', password_hash=VALUES(password_hash)",
+      ["admin@local.test", "admin", hashPassword("admin1234")],
+    );
 
     initialized = true;
     return true;
@@ -456,6 +544,7 @@ export async function resetSeedData() {
   await pool.query("DELETE FROM equity_holdings");
   await pool.query("DELETE FROM equity_transactions");
   await pool.query("DELETE FROM cas_import_runs");
+  await pool.query("DELETE FROM investment_cashflows");
 
   const today = dayjs();
   await pool.query(
@@ -471,12 +560,12 @@ export async function resetSeedData() {
   );
 
   await pool.query(
-    `INSERT INTO fd_master (id, instrument_type, institution_type, holder_name, bank_name, branch, fd_number, deposit_date, maturity_date, principal, interest_rate, tenure_days, maturity_value_expected, maturity_value_actual, payout_type, status, funding_type, linked_loan_id, reserved_for, renewal_flag, renewal_from_fd_id, renewal_date, renewal_new_fd_amount, extra_amount_added, incentive_expected, incentive_received, incentive_percentage, certificate_received, certificate_received_date, is_joint_account, payment_mode, raised_by_name, raised_by_contact, raised_under_name, nominee_name, remarks, notes)
+    `INSERT INTO fd_master (id, instrument_type, institution_type, holder_name, funded_by_name, bank_name, branch, fd_number, deposit_date, maturity_date, principal, interest_rate, tenure_days, maturity_value_expected, maturity_value_actual, payout_type, status, funding_type, linked_loan_id, reserved_for, renewal_flag, renewal_from_fd_id, renewal_date, renewal_new_fd_amount, extra_amount_added, incentive_expected, incentive_received, incentive_percentage, certificate_received, certificate_received_date, is_joint_account, payment_mode, raised_by_name, raised_by_contact, raised_under_name, nominee_name, remarks, notes)
     VALUES
-    (1,'fd','bank','Owner','SBI','Whitefield','SBIFD001', ?, ?, 2000000, 7.2, 365, 2144000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 0, NULL, NULL, NULL, 0, 12000, 7000, 0.60, 1, ?, 0, 'bank_transfer', 'Ravi K', '9876543210', 'Suresh N', 'Spouse', 'Core emergency ladder deposit', 'Primary annual FD'),
-    (2,'fd','bank','Owner','ICICI Bank','HSR','ICFD902', ?, ?, 1800000, 7.6, 370, 1948000, NULL, 'Cumulative', 'active', 'Loan-Backed', 2, NULL, 0, NULL, NULL, NULL, 0, 15000, 5000, 0.83, 1, ?, 1, 'bank_transfer', 'Anita S', '9988776655', 'Anita S', 'Father', 'Lien marked against OD facility', 'Linked to OD'),
-    (3,'subordinate_debt','nbfc','Owner','Axis Bank','Koramangala','AXFD200', ?, ?, 1250000, 7.05, 300, 1323000, NULL, 'Monthly Interest', 'active', 'Self', NULL, 'House Renovation', 0, NULL, NULL, NULL, 0, 9000, 9000, 0.72, 0, NULL, 0, 'upi', 'Deepak M', '9123456780', 'Deepak M', 'Mother', 'Reserved corpus for planned renovation', 'Reserved fund'),
-    (4,'ncd','nbfc','Owner','HDFC Bank','Marathahalli','HDFD099', ?, ?, 950000, 7.4, 545, 1069000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 1, 1, ?, 1120000, 170000, 6000, 0, 0.63, 1, ?, 0, 'bank_transfer', 'Manoj P', '9001122334', 'Manoj P', 'Spouse', 'Renewed with additional top-up capital', 'Top-up planned')`,
+    (1,'fd','bank','Owner','Owner','SBI','Whitefield','SBIFD001', ?, ?, 2000000, 7.2, 365, 2144000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 0, NULL, NULL, NULL, 0, 12000, 7000, 0.60, 1, ?, 0, 'bank_transfer', 'Ravi K', '9876543210', 'Suresh N', 'Spouse', 'Core emergency ladder deposit', 'Primary annual FD'),
+    (2,'fd','bank','Owner','Owner','ICICI Bank','HSR','ICFD902', ?, ?, 1800000, 7.6, 370, 1948000, NULL, 'Cumulative', 'active', 'Loan-Backed', 2, NULL, 0, NULL, NULL, NULL, 0, 15000, 5000, 0.83, 1, ?, 1, 'bank_transfer', 'Anita S', '9988776655', 'Anita S', 'Father', 'Lien marked against OD facility', 'Linked to OD'),
+    (3,'subordinate_debt','nbfc','Owner','Owner','Axis Bank','Koramangala','AXFD200', ?, ?, 1250000, 7.05, 300, 1323000, NULL, 'Monthly Interest', 'active', 'Self', NULL, 'House Renovation', 0, NULL, NULL, NULL, 0, 9000, 9000, 0.72, 0, NULL, 0, 'upi', 'Deepak M', '9123456780', 'Deepak M', 'Mother', 'Reserved corpus for planned renovation', 'Reserved fund'),
+    (4,'ncd','nbfc','Owner','Owner','HDFC Bank','Marathahalli','HDFD099', ?, ?, 950000, 7.4, 545, 1069000, NULL, 'Cumulative', 'active', 'Self', NULL, NULL, 1, 1, ?, 1120000, 170000, 6000, 0, 0.63, 1, ?, 0, 'bank_transfer', 'Manoj P', '9001122334', 'Manoj P', 'Spouse', 'Renewed with additional top-up capital', 'Top-up planned')`,
     [
       today.subtract(120, "day").format("YYYY-MM-DD"),
       today.add(245, "day").format("YYYY-MM-DD"),

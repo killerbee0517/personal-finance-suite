@@ -4,7 +4,7 @@ import { saveLoanAction } from "@/app/actions/data";
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-muted-foreground">{label}</span>
       {children}
     </label>
   );
@@ -13,7 +13,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 export default function LoanNewPage() {
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">Add Loan</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Add Loan</h1>
       <form action={saveLoanAction} className="ta-card space-y-4 p-5">
         <div className="grid gap-4 md:grid-cols-3">
           <Field label="Loan Type"><input name="loan_type" className="ta-input" defaultValue="LAP" /></Field>
@@ -35,7 +35,6 @@ export default function LoanNewPage() {
           <Field label="Outstanding Principal"><input name="outstanding_principal" className="ta-input" defaultValue="1000000" /></Field>
           <Field label="Bullet Closure Amount"><input name="bullet_closure_amount" className="ta-input" defaultValue="0" /></Field>
         </div>
-        <Field label="Status"><input name="status" className="ta-input" defaultValue="active" /></Field>
         <Field label="Notes"><textarea name="notes" className="ta-input" rows={3} /></Field>
         <button type="submit" className="ta-btn">Save Loan</button>
       </form>

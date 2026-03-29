@@ -3,6 +3,7 @@ export type FD = {
   instrument_type: string;
   institution_type: string;
   holder_name: string;
+  funded_by_name: string | null;
   bank_name: string;
   branch: string;
   fd_number: string;
@@ -247,6 +248,20 @@ export type AlertItem = {
   related_entity_id: number;
   due_date: string;
   status: string;
+  created_at: string;
+};
+
+export type InvestmentCashflow = {
+  id: number;
+  instrument_type: string;
+  instrument_id: number | null;
+  holder_name: string;
+  funded_by_name: string;
+  cashflow_date: string;
+  amount: number;
+  flow_type: string;
+  source: string;
+  notes: string | null;
   created_at: string;
 };
 

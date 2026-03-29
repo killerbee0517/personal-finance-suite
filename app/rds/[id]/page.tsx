@@ -1,14 +1,17 @@
 import type { ReactNode } from "react";
+import dayjs from "dayjs";
 import { notFound } from "next/navigation";
 import { saveRDAction } from "@/app/actions/data";
 import { DbRequired } from "@/components/DbRequired";
+import { StatCard } from "@/components/StatCard";
 import { ensureInitialized } from "@/lib/init";
+import { cagrPercent, estimateRDCurrentValue, potentialReturnPercent, rdProjectedBaseFromToday } from "@/lib/returns";
 import { repo } from "@/lib/services";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-muted-foreground">{label}</span>
       {children}
     </label>
   );
@@ -19,10 +22,23 @@ export default async function RDDetailPage({ params }: { params: Promise<{ id: s
   if (!ready) return <DbRequired />;
   const rd = await repo.getRD(Number((await params).id));
   if (!rd) return notFound();
+  const today = dayjs().format("YYYY-MM-DD");
+  const invested = rd.monthly_installment * rd.installments_paid;
+  const estimatedCurrent = estimateRDCurrentValue(rd, today);
+  const currentCagr = cagrPercent(invested, estimatedCurrent, rd.start_date, today);
+  const rdBaseToday = rdProjectedBaseFromToday(rd, today);
+  const potentialReturn = potentialReturnPercent(
+    rdBaseToday,
+    rd.maturity_value_expected || rd.monthly_installment * rd.total_installments,
+  );
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">RD Detail</h1>
+      <h1 className="text-3xl font-bold tracking-tight">RD Detail</h1>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <StatCard label="Current CAGR" value={currentCagr ?? Number.NaN} valueType="percent" asOf={today} />
+        <StatCard label="Potential Return" value={potentialReturn ?? Number.NaN} valueType="percent" asOf={rd.maturity_date} />
+      </div>
       <form action={saveRDAction} className="ta-card space-y-4 p-5">
         <input type="hidden" name="id" value={rd.id} />
         <div className="grid gap-4 md:grid-cols-3">
@@ -42,7 +58,7 @@ export default async function RDDetailPage({ params }: { params: Promise<{ id: s
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label="Interest Rate (%)"><input name="interest_rate" className="ta-input" defaultValue={rd.interest_rate} /></Field>
-          <Field label="Status"><input name="status" className="ta-input" defaultValue={rd.status} /></Field>
+          <Field label="Expected Maturity Value"><input name="maturity_value_expected" className="ta-input" defaultValue={rd.maturity_value_expected} /></Field>
           <Field label="Reserved For"><input name="reserved_for" className="ta-input" defaultValue={rd.reserved_for || ""} /></Field>
         </div>
         <Field label="Notes"><textarea name="notes" className="ta-input" rows={3} defaultValue={rd.notes || ""} /></Field>

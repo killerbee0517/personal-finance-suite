@@ -9,7 +9,7 @@ import { repo } from "@/lib/services";
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-muted-foreground">{label}</span>
       {children}
     </label>
   );
@@ -26,7 +26,7 @@ export default async function LoanDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">Loan Detail</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Loan Detail</h1>
       <div className="ta-card p-4 text-sm">{loan.bank_name} | {loan.loan_type} | Outstanding {formatCurrency(loan.outstanding_principal)}</div>
 
       <form action={saveLoanAction} className="ta-card space-y-4 p-5">
@@ -52,8 +52,6 @@ export default async function LoanDetailPage({ params }: { params: Promise<{ id:
           <Field label="Outstanding Principal"><input name="outstanding_principal" className="ta-input" defaultValue={loan.outstanding_principal} /></Field>
           <Field label="Bullet Closure Amount"><input name="bullet_closure_amount" className="ta-input" defaultValue={loan.bullet_closure_amount || 0} /></Field>
         </div>
-
-        <Field label="Status"><input name="status" className="ta-input" defaultValue={loan.status} /></Field>
         <Field label="Notes"><textarea name="notes" className="ta-input" rows={3} defaultValue={loan.notes || ""} /></Field>
 
         <button type="submit" className="ta-btn">Update Loan</button>

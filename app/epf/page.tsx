@@ -37,7 +37,7 @@ export default async function EPFPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Field label="Interest Rate (%)"><input name="interest_rate" className="ta-input" defaultValue="8.15" /></Field>
           <Field label="Last Interest Credit Date"><input name="last_interest_credit_date" type="date" className="ta-input" defaultValue="2025-03-31" /></Field>
-          <Field label="Status"><input name="status" className="ta-input" defaultValue="active" /></Field>
+          <div />
         </div>
         <Field label="Notes"><input name="notes" className="ta-input" /></Field>
         <button className="ta-btn" type="submit">Save EPF</button>
